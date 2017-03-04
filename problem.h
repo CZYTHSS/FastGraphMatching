@@ -128,49 +128,13 @@ class ScoreVec{
 
 };
 
-//each Instance is an isolated subgraph
-class Instance{
-	public:
-		vector<pair<Float*, int>> table_in_memory;
-		Float smallest, largest; // new = (original-smallest)/(largest-smallest); new \in [0,1] guaranteed; original = new * (largest - smallest) + smallest;
-		vector<Float*> node_score_vecs; 
-		vector<ScoreVec*> edge_score_vecs;
-		vector<vector<string>*> node_label_lists; 
-		Labels labels; // true labels
-		int T; // number of nodes in this instance
-		vector<pair<int, int>> edges; // edge list of this subgraph
-		//vector<vector<Int>*> adj; // adjacency list of each node, only store edges towards nodes of larger id
-		//void build_adj(){
-		//	//assume edges is constructed, build adjacency list
-		//	adj.clear();
-		//	for (int i = 0; i < T; i++){
-		//		adj.push_back(new vector<Int>());
-		//	}
-		//	for (vector<pair<Int, Int>>::iterator e = edges.begin(); e != edges.end(); e++){
-		//		assert(e->first < e->second /* need i < j for each edge (i,j) */);
-		//		adj[e->first]->push_back(e->second);
-		//	}
-		//}
-		void normalize(){
-			Float width = max(largest - smallest, 1e-12);
-			cerr << "normalizing #tables=" << table_in_memory.size() << endl;
-			for (vector<pair<Float*, int>>::iterator it = table_in_memory.begin(); it != table_in_memory.end(); it++){
-				Float* c = it->first;
-				int L = it->second;
-				for (int i = 0; i < L; i++){
-					c[i] = (c[i] - smallest)/width;
-				}
-			}
-		}
-};
-
 class Problem{
 	public:
 		Problem(){
 		};
-
 		Param* param;
-		vector<Instance*> data;
+		int K;
+		vector<Float*> node_score_vecs;
 		Problem(Param* _param) : param(_param) {}
 		virtual void construct_data(){
 			cerr << "NEED to implement construct_data() for this problem!" << endl;
@@ -185,512 +149,45 @@ inline void readLine(ifstream& fin, char* line){
 	}
 }
 
-
-class UAIProblem : public Problem{
+class BipartiteMatchingProblem : public Problem{
 	public:
-		Float avgK;
-		UAIProblem(Param* _param) : Problem(_param){}
-		~UAIProblem(){
-
-		}
-
-		void construct_data(){
-			char* fname = param->testFname;
-			char* line = new char[LINE_LEN];
-			cerr << "reading uai file " << fname << endl;
-			ifstream fin(fname);
-			//skip first line
-			readLine(fin, line);
-			//only one instance
-			Instance* ins = new Instance();
-			readLine(fin, line);
-			ins->T = atoi(line);
-			int T = ins->T;
-			readLine(fin, line);
-			string line_str(line);
-			vector<string> tokens = split(line_str, " ");
-			assert(tokens.size() == T);
-			avgK = 0.0;
-			for (int i = 0; i < T; i++){
-				vector<string>* list_i = new vector<string>();
-				list_i->clear();
-				int K = stoi(tokens[i]);
-				avgK += K;
-				for (int k = 0; k < K; k++){
-					list_i->push_back(to_string(k));
-				}
-				ins->node_label_lists.push_back(list_i);
-				Float* c_i = new Float[K];
-				memset(c_i, 0.0, sizeof(Float)*K);
-				ins->node_score_vecs.push_back(c_i);
-				ins->labels.push_back(0);
-			}
-			avgK /= T;
-
-			// number of factors
-			readLine(fin, line);
-			int F = atoi(line);
-			//cerr << "F=" << F << endl;
-			vector<string> tables;
-			map<pair<int, int>, Float*> table_map;
-			for (int f = 0; f < F; f++){
-				readLine(fin, line);
-				string line_str(line);
-				tables.push_back(line_str);
-				tokens = split(line_str, " ");
-				int d = stoi(tokens[0]);
-				if (d == 1){
-					//this is a node
-					//nothing to do
-				} else {
-					assert(d == 2);
-					//this is an edge
-					int l = stoi(tokens[1]), r = stoi(tokens[2]);
-					//cerr << "l=" << l << ", r=" << r << endl;
-					pair<int, int> e = make_pair(l, r); //l*T + r;
-					int K1 = ins->node_label_lists[l]->size();
-					int K2 = ins->node_label_lists[r]->size();
-					//cerr << "K1=" << K1 << ", K2=" << K2 << endl;
-					if (table_map.find(e) == table_map.end()){
-						ins->edges.push_back(e);
-						Float* c_e = new Float[K1*K2];
-						memset(c_e, 0.0, sizeof(Float)*K1*K2);
-						table_map.insert(make_pair(e, c_e));
-						ScoreVec* sv = new ScoreVec(K1, K2, c_e);
-						ins->edge_score_vecs.push_back(sv);
-					}
-				}
-			}
-
-			//cerr << "done with preamble" << endl;
-
-			ins->smallest=1e100; ins->largest=-1e100;
-			ins->table_in_memory.clear();	
-			// read tables
-			for (int f = 0; f < F; f++){
-				//cerr << f << "/" << F << endl;
-				tokens = split(tables[f], " ");
-				int d = stoi(tokens[0]);
-				if (d == 1){
-					//this is a node
-					int i = stoi(tokens[1]);
-					Float* c_i = ins->node_score_vecs[i];
-					//readLine(fin, line);
-					int K;
-					fin >> K; //= atoi(line);
-					assert(K == ins->node_label_lists[i]->size());
-					/*readLine(fin, line);
-					  string line_str(line);
-					  tokens = split(line_str, " ");
-					  assert(tokens.size() == K);*/
-					ins->table_in_memory.push_back(make_pair(c_i, K));
-					for (int k = 0; k < K; k++){
-						Float val; // = stof(tokens[k]);
-						fin >> val;
-						c_i[k] += -log(val);
-						if (c_i[k] < ins->smallest){
-							ins->smallest = c_i[k];
-						} 	
-						if (c_i[k] > ins->largest){
-							ins->largest = c_i[k];
-						}
-					}
-				} else {
-					assert(d == 2);
-					//this is an edge
-					int l = stoi(tokens[1]), r = stoi(tokens[2]);
-					pair<int, int> e = make_pair(l, r);
-					int K1 = ins->node_label_lists[l]->size(), K2 = ins->node_label_lists[r]->size();
-					map<pair<int, int>, Float*>::iterator it = table_map.find(e);
-					assert(it != table_map.end());
-					Float* c_e = it->second;
-					table_map.insert(make_pair(e, c_e));
-					int KK;
-					fin >> KK;
-					assert(KK = K1 * K2);
-					ins->table_in_memory.push_back(make_pair(c_e, KK));
-					for (int k1 = 0; k1 < K1; k1++){
-						for (int k2 = 0; k2 < K2; k2++){
-							Float val;
-							fin >> val;
-							c_e[k1*K2+k2] += -log(val);
-							if (c_e[k1*K2+k2] < ins->smallest){
-								ins->smallest = c_e[k1*K2+k2];
-							} 	
-							if (c_e[k1*K2+k2] > ins->largest){
-								ins->largest = c_e[k1*K2+k2];
-							}
-						}
-					}
-				}
-			}
-			cerr << "done reading uai file" << endl;			
-
-			ins->largest=1.0;
-			ins->smallest=0.0;
-			ins->normalize();
-			//sort each ScoreVec after all values read
-			for (int i = 0; i < ins->edges.size(); i++){
-				ScoreVec* sv = ins->edge_score_vecs[i];
-				sv->internal_sort();
-			}
-			//cerr << "done sorting" << endl;			
-
-			data.push_back(ins);
-		}
-};
-
-class LOGUAIProblem : public UAIProblem{
-	public:
-		LOGUAIProblem(Param* _param) : UAIProblem(_param){}
-		~LOGUAIProblem(){
-
-		}
-
-		void construct_data(){
-			char* fname = param->testFname;
-			char* line = new char[LINE_LEN];
-			cerr << "reading loguai file " << fname << endl;
-			ifstream fin(fname);
-			//skip first line
-			readLine(fin, line);
-			//only one instance
-			Instance* ins = new Instance();
-			readLine(fin, line);
-			ins->T = atoi(line);
-			int T = ins->T;
-			//cerr << "T=" << T << endl;
-			readLine(fin, line);
-			string line_str(line);
-			vector<string> tokens = split(line_str, " ");
-			assert(tokens.size() == T);
-			for (int i = 0; i < T; i++){
-				vector<string>* list_i = new vector<string>();
-				list_i->clear();
-				int K = stoi(tokens[i]);
-				for (int k = 0; k < K; k++){
-					list_i->push_back(to_string(k));
-				}
-				ins->node_label_lists.push_back(list_i);
-				Float* c_i = new Float[K];
-				memset(c_i, 0.0, sizeof(Float)*K);
-				ins->node_score_vecs.push_back(c_i);
-				ins->labels.push_back(0);
-			}
-
-			// number of factors
-			int F;
-			fin >> F;
-			
-			cerr << "#factors=" << F << endl;
-			vector<int>* factors = new vector<int>[F];
-
-			int* function_id = new int[F];// the corresponding unique function id
-			
-			int num_unique_function = 0;
-			vector<vector<int>> list_of_factors;
-			for (int f = 0; f < F; f++){
-				int d;
-				fin >> d;
-				if (f == 0){
-					assert(d > 0);
-				}
-				if (d > 0){
-					num_unique_function++;
-					list_of_factors.push_back(vector<int>());
-				} else {
-					d = -d;
-				}
-				function_id[f] = num_unique_function-1;
-				list_of_factors[function_id[f]].push_back(f);
-				for (int i = 0; i < d; i++){
-					int varid;
-					fin >> varid;
-					factors[f].push_back(varid);
-				}
-			}
-			cerr << "reading function tables";	
-			ins->smallest = 1e100; ins->largest = -1e100;
-
-			// read tables
-			ins->table_in_memory.clear(); 
-			for (int u = 0; u < num_unique_function; u++){
-				int L = -1;
-				fin >> L;
-				Float* c = new Float[L];
-				ins->table_in_memory.push_back(make_pair(c, L));
-				for (int l = 0; l < L; l++){
-					Float val;
-					fin >> val;
-					c[l] = -val;
-					if (val > 1e10 || val < -1e10){
-						//out liers
-						continue;
-					}
-					if (c[l] < ins->smallest){
-						ins->smallest = c[l];
-					}
-					if (c[l] > ins->largest){
-						ins->largest = c[l];
-					}
-				}
-				ScoreVec* sv = NULL;
-				if (u % 1000 == 0){
-					cerr << ".";
-				}
-				//This can be faster
-				for (vector<int>::iterator itf = list_of_factors[u].begin(); itf < list_of_factors[u].end(); itf++){
-					int f = *itf;
-					int d = factors[f].size();
-					if (d == 1){
-						//this is a node
-						int i = factors[f][0];
-						ins->node_score_vecs[i] = c;
-						assert(L == ins->node_label_lists[i]->size());
-					} else {
-						assert(d == 2);
-						//this is an edge
-						int l = factors[f][0], r = factors[f][1];
-						pair<int, int> e = make_pair(l, r);
-						ins->edges.push_back(e);
-						int K1 = ins->node_label_lists[l]->size(), K2 = ins->node_label_lists[r]->size();
-						assert(L == K1 * K2);
-						if (sv == NULL){
-							sv = new ScoreVec(K1, K2, c);
-						}
-						ins->edge_score_vecs.push_back(sv);
-					}
-				}
-			}
-			cerr << "done reading loguai file" << endl;
-
-			if (ins->largest - ins->smallest > 1e4){
-				ins->largest = 1.0;
-				ins->smallest = 0.0;
-			}
-
-			ins->normalize();
-			//sort each ScoreVec after all values read
-			for (int i = 0; i < ins->edges.size(); i++){
-				ScoreVec* sv = ins->edge_score_vecs[i];
-				sv->internal_sort();
-			}
-			cerr << "done normalizing" << endl;
-			data.push_back(ins);
-			delete function_id;
-		}
-};
-
-class CompleteGraphProblem : public Problem{
-	public:
-		map<string, int> label_index_map;
-		vector<string> label_name_list;
-		map<string, int> node_index_map;
-		int K;
-		ScoreVec* sv;
-		CompleteGraphProblem(Param* _param) : Problem(_param) {}
-		~CompleteGraphProblem(){
-			label_index_map.clear();
-			label_name_list.clear();
-			node_index_map.clear();
-		}
+		BipartiteMatchingProblem(Param* _param) : Problem(_param) {}
+		~BipartiteMatchingProblem(){}
 		void construct_data(){
 			cerr << "constructing from " << param->testFname << " ";
-			node_index_map.clear();
-			label_index_map.clear();
-			label_name_list.clear();
-			ifstream fin(param->testFname);
-			char* line = new char[LINE_LEN];
-
-			Instance* ins = new Instance();// only one instance in this task
-			readLine(fin, line);
-			string line_str(line);
-			vector<string> tokens = split(line_str, " ");
-			K = stoi(tokens[1]);
-			ins->T = stoi(tokens[0]);
-			for (int i = 0; i < ins->T; i++){
-				readLine(fin, line);
-				string line_str(line);
-				tokens = split(line_str, " ");
-				node_index_map.insert(make_pair(tokens[0], i));
-				Float* c = new Float[K];
-				memset(c, 0.0, sizeof(Float)*K);
-				for (vector<string>::iterator t = tokens.begin() + 1; t != tokens.end(); t++){
-					vector<string> label_val = split(*t, ":");
-					map<string, int>::iterator it = label_index_map.find(label_val[0]);
-					int index;
-					if (it == label_index_map.end()){
-						index = label_index_map.size();
-						label_index_map.insert(make_pair(label_val[0], index));
-					} else {
-						index = it->second;
-					}
-					c[index] = (Float)(-stod(label_val[1]));
-				}
-				ins->node_score_vecs.push_back(c);
-				ins->labels.push_back(0); // prediction is disabled for this task
-			}
-			//cerr << "#node=" << ins->T << endl;
-
-			//skip this line
-			readLine(fin, line);
-			Float* c = new Float[K*K];
-			memset(c, 0.0, sizeof(Float)*K*K);
+            ifstream fin(param->testFname);
+            char* line = new char[LINE_LEN];
+            readLine(fin, line);
+            K = stoi(string(line));
+            Float* c = new Float[K*K];
 			for (int i = 0; i < K; i++){
-				readLine(fin, line);
-				string line_str(line);
-				vector<string> tokens = split(line_str, " ");
-				map<string, int>::iterator it = label_index_map.find(tokens[0]);
-				assert(it != label_index_map.end());
-				int k1 = it->second;
-				assert(k1 >= 0 && k1 < K);
-				for (int j = 1; j < tokens.size(); j++){
-					vector<string> label_val = split(tokens[j], ":");
-					Float val = (Float)stod(label_val[1]);
-					map<string, int>::iterator it = label_index_map.find(label_val[0]);
-					assert(it != label_index_map.end());
-					int k2 = it->second;
-					assert(k2 >= 0 && k2 < K);
-					c[k1*K+k2] = -val;
-				}
-			}
-
-			sv = new ScoreVec(c, K, K);
-			sv->internal_sort();
-			while (!fin.eof()){
-				readLine(fin, line);
-				if (fin.eof() || strlen(line) == 0) continue;
-				string line_str(line);
-				vector<string> tokens = split(line_str, " ");
-				cerr << line_str << endl;
-				map<string, int>::iterator i = node_index_map.find(tokens[0]), j = node_index_map.find(tokens[1]);
-				assert(i != node_index_map.end() && j != node_index_map.end());
-				ins->edges.push_back(make_pair(i->second,j->second));
-				ins->edge_score_vecs.push_back(sv);
-			}
-
-			//cerr << "#edges=" << ins->edges.size() << endl;
-
-			data.push_back(ins);
-
-			for(Int i=0;i<data.size();i++)
-				data[i]->T = data[i]->labels.size();
-
-			label_name_list.resize(label_index_map.size());
-
-			for(map<string,Int>::iterator it=label_index_map.begin(); it!=label_index_map.end(); it++){
-				label_name_list[it->second] = it->first;
-			}
-
-			//propagate address of label name list to all nodes
-			for (vector<Instance*>::iterator it_data = data.begin(); it_data != data.end(); it_data++){
-				Instance* ins = *it_data;
-				for (int t = 0; t < ins->T; t++){
-					ins->node_label_lists.push_back(&(label_name_list));
-				}
-			}
-
-			assert(K == label_index_map.size());
-
-			/*ofstream fout("../../data/107network/107network.uai");
-			fout << "MARKOV" << endl;
-			int T = ins->T;
-			fout << T << endl;
-			for (int t = 0; t < T; t++){
-				if (t != 0)
-					fout << " ";
-				fout << K ;
-			}
-			fout << endl;
-			fout << (T + ins->edges.size()) << endl;
-			for (int t = 0; t < T; t++){
-				fout << "1 " << t << endl;
-			}
-			for (int t = 0; t < ins->edges.size(); t++){
-				fout << "2 " << ins->edges[t].first << " " << ins->edges[t].second << endl;
-			}
-			for (int i = 0; i < T; i++){
-				fout << K << endl;
-				Float* c_i = ins->node_score_vecs[i];
-				for (int k = 0; k < K; k++){
-					if (k != 0)
-						fout << " ";
-					fout << exp(-c_i[k]);
-				}
-				fout << endl;
-				fout << endl;
-			}
-			for (int e = 0; e < ins->edges.size(); e++){
-				cerr << e << "/" << ins->edges.size() << endl;
-				int l = ins->edges[e].first, r = ins->edges[e].second;
-				Float* c_e = ins->edge_score_vecs[e]->c;
-				int K1 = ins->node_label_lists[l]->size(), K2 = ins->node_label_lists[r]->size();
-				fout << K1*K2 << endl;
-				for (int k1 = 0; k1 < K1; k1++){
-					for (int k2 = 0; k2 < K2; k2++){
-						if (k2 != 0)
-							fout << " ";
-						fout << exp(-c_e[k1*K2+k2]);
-					}
-					fout << endl;
-				}
-				fout << endl;
-			}
-
-			fout.close();
-			*/
-			ins->largest = 1.0; ins->smallest = 0.0;
-			delete[] line;
-			cerr << "done" << endl;
-		}
-
-		void print_to_loguai2(string fname){
-			Instance* ins = data[0];
-			ofstream fout(fname);
-			fout << "MARKOV" << endl;
-			fout << ins->T << endl;
-			for (int i = 0; i < ins->T; i++){
-				fout << ins->node_label_lists[i]->size() << " ";
-			}
-			fout << endl;
-			fout << (ins->T+ins->edges.size()) << endl;
-			for (int i = 0; i < ins->T; i++){
-				fout << "1 " << i << endl;
-			}
-			for (int i = 0; i < ins->edges.size(); i++){
-				pair<int, int> p = ins->edges[i];
-				if (i == 0){
-					fout << "2 ";
-				}else {
-					fout << "-2 ";
-				}
-				if (p.first > p.second){
-					int temp = p.first;
-					p.first = p.second;
-					p.second = temp;
-				}
-				fout << p.first << " " << p.second << endl;
-			}
-			fout << endl;
-			for (int i = 0; i < ins->T; i++){
-				Float* c = ins->node_score_vecs[i];
-				int K_i = ins->node_label_lists[i]->size();
-				fout << K_i << endl;
-				for (int k = 0; k < K_i; k++){
-					fout << -c[k] << " ";
-				}
-				fout << endl;
-				fout << endl;
-			}
-			fout << (K*K) << endl;
-			ScoreVec* sv = ins->edge_score_vecs[0];
-			for (int k = 0; k < K*K; k++){
-				fout << -sv->c[k] << " ";
-			}
-			fout << endl;
-			
-			fout.close();
-		}
+                readLine(fin, line);
+                while (strlen(line) == 0){
+                    readLine(fin, line);
+                }
+                string line_str(line);
+                vector<string> tokens = split(line_str, ",");
+                for (int j = 0; j < K; j++){
+                    c[i*K+j] = stod(tokens[j]);
+                }
+            }
+            fin.close();
+            
+            for (int i = 0; i < K; i++){
+                Float* c_i = new Float[K];
+                for (int j = 0; j < K; j++){
+                    c_i[j] = c[i*K+j];
+                }
+                node_score_vecs.push_back(c_i);
+            }
+            for (int j = 0; j < K; j++){
+                Float* c_j = new Float[K];
+                for (int i = 0; i < K; i++){
+                    c_j[i] = c[i*K+j];
+                }
+                node_score_vecs.push_back(c_j);
+            }
+        }
 };
 
 

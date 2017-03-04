@@ -7,7 +7,7 @@ all:
 data_dir=./data/
 model_dir=./model/
 s=2
-m=100000
+m=1
 q=1
 e=3
 a=0.1
@@ -21,6 +21,10 @@ infea_tol=1e-3
 testno=1
 
 .PHONY:pos 107network
+
+emd:
+	$(eval test_file := $(data_dir)/$@)
+	./predict -p bipartite -s 2 -o $(rho) -e $(eta) -m $(m) $(test_file)
 
 penguin-gm:
 	$(eval test_file := ../penguin-gm.h5.loguai2)

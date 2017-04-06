@@ -1,4 +1,4 @@
-function runLAPJV(datafile)
+function [rowsol, cost, u, v, c, A] = runLAPJV(datafile)
     fin = fopen(datafile, 'r');
     K = fscanf(fin, '%d\n', [1]);
     format = '%f';
@@ -6,9 +6,7 @@ function runLAPJV(datafile)
         format = strcat([format, ',%f']);
     end
     A = fscanf(fin, format, [K Inf]);
-    [rowsol, cost] = lapjv(A);
-    
-    rowsol
-    cost
+    tic;
+    [rowsol, cost, v, u, c] = lapjv(A);
+    toc
 end
-

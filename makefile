@@ -7,7 +7,7 @@ all:
 data_dir=./data/
 model_dir=./model/
 s=2
-m=1
+m=100000
 q=1
 e=3
 a=0.1
@@ -15,7 +15,7 @@ opt=
 c=1
 t=0.1
 scale=test
-rho=0.01
+rho=1
 eta=1
 infea_tol=1e-3
 testno=1
@@ -25,6 +25,10 @@ testno=1
 emd:
 	$(eval test_file := $(data_dir)/$@)
 	./predict -p bipartite -s 2 -o $(rho) -e $(eta) -m $(m) $(test_file)
+
+lapjv:
+	$(eval test_file := $(data_dir)/emd)
+	matlab -nodesktop -r "[rowsol, cost, u, v, c, A] = runLAPJV('$(test_file)');"
 
 penguin-gm:
 	$(eval test_file := ../penguin-gm.h5.loguai2)

@@ -23,14 +23,14 @@ class UniFactor : public Factor{
 		Float rho;
 		Float* c; // score vector, c[k] = -<w_k, x>
 		Float nnz_tol;
-        pair<Float, int>* sorted_index;
+		pair<Float, int>* sorted_index;
 
 		bool shrink;
 
 		//maintained
 		Float* grad;
 		Float* y;
-        bool* inside;
+		bool* inside;
 		Float* msg;
 		vector<int> act_set;
 		vector<int> ever_nnz_msg;
@@ -53,20 +53,20 @@ class UniFactor : public Factor{
 
 			inside = new bool[K];
 			memset(inside, false, sizeof(bool)*K);
-            is_ever_nnz = new bool[K];
+			is_ever_nnz = new bool[K];
 			memset(is_ever_nnz, false, sizeof(bool)*K);
 
-            msg = new Float[K];
+			msg = new Float[K];
 			memset(msg, 0.0, sizeof(Float)*K);
 			act_set.clear();
-            ever_nnz_msg.clear();
-            sorted_index = new pair<Float, int>[K];
-            for (int k = 0; k < K; k++){
-                sorted_index[k] = make_pair(c[k], k);
-            }
+			ever_nnz_msg.clear();
+			sorted_index = new pair<Float, int>[K];
+			for (int k = 0; k < K; k++){
+				sorted_index[k] = make_pair(c[k], k);
+			}
 			sort(sorted_index, sorted_index+K, less<pair<Float, int>>());
 
-            //fill_act_set();
+			//fill_act_set();
 			shrink = true;
 		}
 
@@ -77,16 +77,16 @@ class UniFactor : public Factor{
 			//delete[] is_ever_act;
 			act_set.clear();
 			delete msg;
-            delete sorted_index;
-            delete is_ever_nnz;
+			delete sorted_index;
+			delete is_ever_nnz;
 		}
-        
-        inline void add_ever_nnz(int k){
-            if (!is_ever_nnz[k]){
-                is_ever_nnz[k] = true;
-                ever_nnz_msg.push_back(k);
-            }
-        }
+
+		inline void add_ever_nnz(int k){
+			if (!is_ever_nnz[k]){
+				is_ever_nnz[k] = true;
+				ever_nnz_msg.push_back(k);
+			}
+		}
 
 		void fill_act_set(){
 			act_set.clear();
@@ -94,7 +94,7 @@ class UniFactor : public Factor{
 			for (int k = 0; k < K; k++){
 				act_set.push_back(k);
 				add_ever_nnz(k);
-                inside[k] = true;
+				inside[k] = true;
 			}
 		}
 
@@ -104,32 +104,32 @@ class UniFactor : public Factor{
 			//compute gradient of y_i
 			Float gmax = -1e100;
 			int max_index = -1;
-            
-            for (vector<int>::iterator it = ever_nnz_msg.begin(); it != ever_nnz_msg.end(); it++){
-                int k = *it;
-                if (inside[k]){
-                    continue;
-                }
-                Float grad_k = c[k] + rho*msg[k];
-                if (-grad_k > gmax){
-                    gmax = -grad_k;
-                    max_index = k;
-                }
-            }
 
-            for (int i = 0; i < K; i++){
-                pair<Float, int> p = sorted_index[i];
-                int k = p.second;
-                if (is_ever_nnz[k] || inside[k]){
-                    continue;
-                }
-                Float grad_k = p.first;
-                if (-grad_k > gmax){
-                    gmax = -grad_k;
-                    max_index = k;
-                }
-                break;
-            }
+			for (vector<int>::iterator it = ever_nnz_msg.begin(); it != ever_nnz_msg.end(); it++){
+				int k = *it;
+				if (inside[k]){
+					continue;
+				}
+				Float grad_k = c[k] + rho*msg[k];
+				if (-grad_k > gmax){
+					gmax = -grad_k;
+					max_index = k;
+				}
+			}
+
+			for (int i = 0; i < K; i++){
+				pair<Float, int> p = sorted_index[i];
+				int k = p.second;
+				if (is_ever_nnz[k] || inside[k]){
+					continue;
+				}
+				Float grad_k = p.first;
+				if (-grad_k > gmax){
+					gmax = -grad_k;
+					max_index = k;
+				}
+				break;
+			}
 
 			searched_index = max_index;
 			if (max_index != -1){
@@ -152,39 +152,39 @@ class UniFactor : public Factor{
 			Float* y_new = new Float[act_set.size()];
 			int act_count = 0;
 
-            Float* b = new Float[act_set.size()];
-            memset(b, 0.0, sizeof(Float)*act_set.size());
-            act_count = 0;
-            for (vector<int>::iterator it = act_set.begin(); it != act_set.end(); it++, act_count++){
-                int k = *it;
-                b[act_count] -= c[k]/rho;
-                b[act_count] -= msg[k]-y[k];
-                //cerr << b[act_count] << " ";
-            }
-            //cout << "solving simplex:" << endl;
-            //cout << "\t";
-            //for (int k = 0; k < act_set.size(); k++){
-            //    cout << " " << b[k];
-            //}
-            //cout << endl;
-            solve_simplex(act_set.size(), y_new, b);
-            //cout << "\t";
-            //for (int k = 0; k < act_set.size(); k++){
-            //    cout << " " << y_new[k];
-            //}
-            //cout << endl;
-            delete[] b;
-            
-            act_count = 0;
-            for (vector<int>::iterator it = act_set.begin(); it != act_set.end(); it++, act_count++){
-                int k = *it;
-                Float delta_y = y_new[act_count] - y[k];
-                //stats->delta_Y_l1 += fabs(delta_y);
-                msg[k] += delta_y;
-                if (msg[k] != 0){
-                    add_ever_nnz(k);
-                }
-            }
+			Float* b = new Float[act_set.size()];
+			memset(b, 0.0, sizeof(Float)*act_set.size());
+			act_count = 0;
+			for (vector<int>::iterator it = act_set.begin(); it != act_set.end(); it++, act_count++){
+				int k = *it;
+				b[act_count] -= c[k]/rho;
+				b[act_count] -= msg[k]-y[k];
+				//cerr << b[act_count] << " ";
+			}
+			//cout << "solving simplex:" << endl;
+			//cout << "\t";
+			//for (int k = 0; k < act_set.size(); k++){
+			//    cout << " " << b[k];
+			//}
+			//cout << endl;
+			solve_simplex(act_set.size(), y_new, b);
+			//cout << "\t";
+			//for (int k = 0; k < act_set.size(); k++){
+			//    cout << " " << y_new[k];
+			//}
+			//cout << endl;
+			delete[] b;
+
+			act_count = 0;
+			for (vector<int>::iterator it = act_set.begin(); it != act_set.end(); it++, act_count++){
+				int k = *it;
+				Float delta_y = y_new[act_count] - y[k];
+				//stats->delta_Y_l1 += fabs(delta_y);
+				msg[k] += delta_y;
+				if (msg[k] != 0){
+					add_ever_nnz(k);
+				}
+			}
 
 			vector<int> next_act_set;
 			next_act_set.clear();
@@ -197,8 +197,8 @@ class UniFactor : public Factor{
 					//this index is justed added by search()
 					//Only if this index is active after subsolve, then it's added to ever_act_set
 					/*if (k == searched_index){
-						adding_ever_act(k);
-					}*/
+					  adding_ever_act(k);
+					  }*/
 					next_act_set.push_back(k);
 				} else {
 					inside[k] = false;
@@ -214,12 +214,12 @@ class UniFactor : public Factor{
 		//goal: minimize score
 		inline Float score(){
 			/*Float score = 0.0;
-			for (vector<int>::iterator it = act_set.begin(); it != act_set.end(); it++){
-				int k = *it;
-				score += c[k]*y[k];
-			}
-			return score;
-			*/
+			  for (vector<int>::iterator it = act_set.begin(); it != act_set.end(); it++){
+			  int k = *it;
+			  score += c[k]*y[k];
+			  }
+			  return score;
+			 */
 			Float max_y = -1;
 			recent_pred = -1;
 			//randomly select when there is a tie
@@ -234,8 +234,8 @@ class UniFactor : public Factor{
 			//cerr << "recent_pred=" << recent_pred << ", c=" << c[recent_pred] << endl;
 			return c[recent_pred];
 		}
-		
-        inline Float rel_score(){
+
+		inline Float rel_score(){
 			Float score = 0.0;
 			for (vector<int>::iterator it = act_set.begin(); it != act_set.end(); it++){
 				int k = *it;

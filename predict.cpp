@@ -81,229 +81,233 @@ void parse_cmd_line(int argc, char** argv, Param* param){
 	}
 }
 
-double struct_predict(Problem* prob, Param* param){
-    
+double struct_predict(Problem* prob, Param* param){ 
 	Float hit = 0.0;
 	Float N = 0.0;
 	int n = 0;
 	stats = new Stats();
-    int K = prob->K;
-    cout << "constructing factors...";
-    vector<UniFactor*> x;
-    for (int i = 0; i < K; i++){
-        UniFactor* x_i = new UniFactor(K, prob->node_score_vecs[i], param);
-        x.push_back(x_i);
-    }
-    vector<UniFactor*> xt;
-    for (int i = 0; i < K; i++){
-        UniFactor* xt_i = new UniFactor(K, prob->node_score_vecs[K+i], param);
-        xt.push_back(xt_i);
-    }
-    cout << "done" << endl;
-    
-    //////////////////////////////////////
-    // get row solutions
-    /////////////////////////////////////
-    //ifstream fin("data/rowsol");
-    //int* rowsol = new int[K];
-    //int* colsol = new int[K];
-    //int max_top = 0;
-    //Float row_cost = 0.0;
-    //Float col_cost = 0.0;
-    //Float avg_top = 0.0;
-    /*for( int k = 0; k < K; k++){
-        fin >> colsol[k];
-        colsol[k]--;
-        rowsol[colsol[k]] = k;
 
-        for(int i = 0; i < K; i++){
-            if (x[colsol[k]]->sorted_index[i].second == k){
-                if (max_top < i){
-                    max_top = i;
-                }
-                avg_top += i;
-                row_cost += x[colsol[k]]->sorted_index[i].first;
-                break;
-            }
-        }
-        for(int i = 0; i < K; i++){
-            if (xt[k]->sorted_index[i].second == colsol[k]){
-                if (max_top < i){
-                    max_top = i;
-                }
-                avg_top += i;
-                col_cost += xt[k]->sorted_index[i].first;
-                break;
-            }
-        }
-    }*/
-    //cout << "row_cost=" << row_cost << ", col_cost=" << col_cost << endl;
-    //cout << "max_top="<< max_top << ", avg_top=" << avg_top/(2*K)<< endl;
+	int K = prob->K;
+	cout << "constructing factors...";
+	vector<UniFactor*> x;
+	for (int i = 0; i < K; i++){
+		UniFactor* x_i = new UniFactor(K, prob->node_score_vecs[i], param);
+		x.push_back(x_i);
+	}
+	vector<UniFactor*> xt;
+	for (int i = 0; i < K; i++){
+		UniFactor* xt_i = new UniFactor(K, prob->node_score_vecs[K+i], param);
+		xt.push_back(xt_i);
+	}
+	cout << "done" << endl;
 
-    int iter = 0;
-    Float rho = param->rho;
-    int* indices = new int[K*2];
-    for (int i = 0; i < K*2; i++){
-        indices[i] = i;
-    }
-    bool* taken = new bool[K];
-    Float best_decoded = 1e100;
-    while (iter++ < param->max_iter){
-        stats->maintain_time -= get_current_time(); 
-        random_shuffle(indices, indices+K*2);
-        stats->maintain_time += get_current_time(); 
-        Float act_size_sum = 0;
-        Float ever_nnz_size_sum = 0;
-        Float recall_rate = 0.0;
-        for (int k = 0; k < K*2; k++){
-            if (k % 2 == 0){
-                int i = k/2;
-                UniFactor* node = x[i];
-                //if (node->inside[rowsol[i]]){
-                //    recall_rate += 1.0;
-                //} else {
-                //    node->act_set.push_back(rowsol[i]);
-                //    node->inside[rowsol[i]] = true;
-                //}
-                node->search();
-                node->subsolve();
-                
-                act_size_sum += node->act_set.size();
-                ever_nnz_size_sum += node->ever_nnz_msg.size();
-                stats->maintain_time -= get_current_time(); 
-                Float* msg = node->msg;
-                Float* y = node->y;
-                for (vector<int>::iterator it = node->act_set.begin(); it != node->act_set.end(); it++){
-                    int j = *it;
-                    xt[j]->msg[i] = -msg[j];
-                    if (abs(msg[j]) > 1e-12){
-                        xt[j]->add_ever_nnz(i);
-                    }
-                }
-                stats->maintain_time += get_current_time(); 
-            } else {
-                int j = k/2;
-                UniFactor* node = xt[j];
-                //if (node->inside[colsol[j]]){
-                //    recall_rate += 1.0;
-                //} else {
-                //    node->act_set.push_back(colsol[j]);
-                //    node->inside[colsol[j]] = true;
-                //}
-                node->search();
-                node->subsolve();
-                act_size_sum += node->act_set.size();
-                ever_nnz_size_sum += node->ever_nnz_msg.size();
-                stats->maintain_time -= get_current_time(); 
-                Float* msg = node->msg;
-                Float* y = node->y;
-                for (vector<int>::iterator it = node->act_set.begin(); it != node->act_set.end(); it++){
-                    int i = *it;
-                    x[i]->msg[j] = -msg[i];
-                    if (abs(msg[i]) > 1e-12){
-                        x[i]->add_ever_nnz(j);
-                    }
-                }
-                stats->maintain_time += get_current_time(); 
-            }
-        }
-        // msg[i] = (x[i][j] - xt[j][i] + mu[i][j])
-        // msg[i] = (x[i][j] - xt[j][i] + mu[i][j])
-        stats->maintain_time -= get_current_time(); 
-        for (int i = 0; i < K; i++){
-            for (vector<int>::iterator it = x[i]->act_set.begin(); it != x[i]->act_set.end(); it++){
-                int j = *it;
-                Float delta = x[i]->y[j];
-                x[i]->msg[j] += delta;
-                xt[j]->msg[i] -= delta;
-                if (abs(x[i]->msg[j]) > 1e-12){
-                    x[i]->add_ever_nnz(j);
-                    xt[j]->add_ever_nnz(i);
-                }
-            }
-        }
-        for (int j = 0; j < K; j++){
-            for (vector<int>::iterator it = xt[j]->act_set.begin(); it != xt[j]->act_set.end(); it++){
-                int i = *it;
-                Float delta = -xt[j]->y[i];
-                x[i]->msg[j] += delta;
-                xt[j]->msg[i] -= delta;
-                if (abs(x[i]->msg[j]) > 1e-12){
-                    x[i]->add_ever_nnz(j);
-                    xt[j]->add_ever_nnz(i);
-                }
-            }
-        }
-        Float cost = 0.0, infea = 0.0;
-        for (int i = 0; i < K; i++){
-            for (vector<int>::iterator it = x[i]->act_set.begin(); it != x[i]->act_set.end(); it++){
-                int j = *it;
-                cost += x[i]->y[j] * x[i]->c[j];
-                infea += abs(xt[j]->y[i] - x[i]->y[j]);
-                //cout << x[i]->y[j] << "\t";
-            }
-        }
+	//////////////////////////////////////
+	// get row solutions
+	/////////////////////////////////////
+	//ifstream fin("data/rowsol");
+	//int* rowsol = new int[K];
+	//int* colsol = new int[K];
+	//int max_top = 0;
+	//Float row_cost = 0.0;
+	//Float col_cost = 0.0;
+	//Float avg_top = 0.0;
+	/*for( int k = 0; k < K; k++){
+	  fin >> colsol[k];
+	  colsol[k]--;
+	  rowsol[colsol[k]] = k;
 
-        for (int j = 0; j < K; j++){
-            for (vector<int>::iterator it = xt[j]->act_set.begin(); it != xt[j]->act_set.end(); it++){
-                int i = *it;
-                cost += xt[j]->y[i] * xt[j]->c[i];
-                infea += abs(xt[j]->y[i] - x[i]->y[j]);
-                //cout << xt[j]->y[i] << "\t";
-            }
-            //cout << endl;
-        }
-        if (iter % 1 == 0){
-            memset(taken, false, sizeof(bool)*K);
-            Float decoded = 0.0;
-            random_shuffle(indices, indices+K*2);
-            for (int k = 0; k < K*2; k++){
-                if (indices[k] >= K){
-                    continue;
-                }
-                int i = indices[k];
-                Float max_y = 0.0;
-                int index = -1;
-                for (vector<int>::iterator it = x[i]->act_set.begin(); it != x[i]->act_set.end(); it++){
-                    int j = *it;
-                    if (!taken[j] && (x[i]->y[j] > max_y)){
-                        max_y = x[i]->y[j];
-                        index = j;
-                    }
-                }
-                if (index == -1){
-                    for (int j = 0; j < K; j++){
-                        if (!taken[j]){
-                            index = j;
-                            break;
-                        }
-                    }
-                }
-                taken[index] = true;
-                decoded += x[i]->c[index];
-            }
-            if (decoded < best_decoded){
-                best_decoded = decoded;
-            }
-        }
-        stats->maintain_time += get_current_time(); 
-        
-        //cout << endl;
-        cout << "iter=" << iter;
-        cout << ", recall_rate=" << recall_rate/(2*K);
-        cout << ", act_size=" << act_size_sum/(2*K);
-        cout << ", ever_nnz_size=" << ever_nnz_size_sum/(2*K);
-        cout << ", cost=" << cost/2.0 << ", infea=" << infea << ", best_decoded=" << best_decoded;
-        cout << ", search=" << stats->uni_search_time;
-        cout << ", subsolve=" << stats->uni_subsolve_time;
-        cout << ", maintain=" << stats->maintain_time;
-        cout << endl;
-        if (infea < 1e-5){
-            break;
-        }
-    }
-    delete taken;
-    return 0;
+	  for(int i = 0; i < K; i++){
+	  if (x[colsol[k]]->sorted_index[i].second == k){
+	  if (max_top < i){
+	  max_top = i;
+	  }
+	  avg_top += i;
+	  row_cost += x[colsol[k]]->sorted_index[i].first;
+	  break;
+	  }
+	  }
+	  for(int i = 0; i < K; i++){
+	  if (xt[k]->sorted_index[i].second == colsol[k]){
+	  if (max_top < i){
+	  max_top = i;
+	  }
+	  avg_top += i;
+	  col_cost += xt[k]->sorted_index[i].first;
+	  break;
+	  }
+	  }
+	  }*/
+	//cout << "row_cost=" << row_cost << ", col_cost=" << col_cost << endl;
+	//cout << "max_top="<< max_top << ", avg_top=" << avg_top/(2*K)<< endl;
+
+	int iter = 0;
+	Float rho = param->rho;
+	int* indices = new int[K*2];
+	for (int i = 0; i < K*2; i++){
+		indices[i] = i;
+	}
+	bool* taken = new bool[K];
+	Float best_decoded = 1e100;
+	while (iter++ < param->max_iter){
+		stats->maintain_time -= get_current_time(); 
+		//random_shuffle(indices, indices+K*2);
+		stats->maintain_time += get_current_time(); 
+		Float act_size_sum = 0;
+		Float ever_nnz_size_sum = 0;
+		Float recall_rate = 0.0;
+		for (int k = 0; k < K*2; k++){
+			if (k % 2 == 0){
+				int i = k/2;
+				UniFactor* node = x[i];
+				//if (node->inside[rowsol[i]]){
+				//    recall_rate += 1.0;
+				//} else {
+				//    node->act_set.push_back(rowsol[i]);
+				//    node->inside[rowsol[i]] = true;
+				//}
+
+				//add a new coordinate into active set
+				node->search();
+
+				//given active set, solve subproblem
+				node->subsolve();
+
+				act_size_sum += node->act_set.size();
+				ever_nnz_size_sum += node->ever_nnz_msg.size();
+				stats->maintain_time -= get_current_time(); 
+				Float* msg = node->msg;
+				Float* y = node->y;
+				for (vector<int>::iterator it = node->act_set.begin(); it != node->act_set.end(); it++){
+					int j = *it;
+					xt[j]->msg[i] = -msg[j];
+					if (abs(msg[j]) > 1e-12){
+						xt[j]->add_ever_nnz(i);
+					}
+				}
+				stats->maintain_time += get_current_time(); 
+			} else {
+				int j = k/2;
+				UniFactor* node = xt[j];
+				//if (node->inside[colsol[j]]){
+				//    recall_rate += 1.0;
+				//} else {
+				//    node->act_set.push_back(colsol[j]);
+				//    node->inside[colsol[j]] = true;
+				//}
+				node->search();
+				node->subsolve();
+				act_size_sum += node->act_set.size();
+				ever_nnz_size_sum += node->ever_nnz_msg.size();
+				stats->maintain_time -= get_current_time(); 
+				Float* msg = node->msg;
+				Float* y = node->y;
+				for (vector<int>::iterator it = node->act_set.begin(); it != node->act_set.end(); it++){
+					int i = *it;
+					x[i]->msg[j] = -msg[i];
+					if (abs(msg[i]) > 1e-12){
+						x[i]->add_ever_nnz(j);
+					}
+				}
+				stats->maintain_time += get_current_time(); 
+			}
+		}
+		// msg[i] = (x[i][j] - xt[j][i] + mu[i][j])
+		// msg[i] = (x[i][j] - xt[j][i] + mu[i][j])
+		stats->maintain_time -= get_current_time(); 
+		for (int i = 0; i < K; i++){
+			for (vector<int>::iterator it = x[i]->act_set.begin(); it != x[i]->act_set.end(); it++){
+				int j = *it;
+				Float delta = x[i]->y[j];
+				x[i]->msg[j] += delta;
+				xt[j]->msg[i] -= delta;
+				if (abs(x[i]->msg[j]) > 1e-12){
+					x[i]->add_ever_nnz(j);
+					xt[j]->add_ever_nnz(i);
+				}
+			}
+		}
+		for (int j = 0; j < K; j++){
+			for (vector<int>::iterator it = xt[j]->act_set.begin(); it != xt[j]->act_set.end(); it++){
+				int i = *it;
+				Float delta = -xt[j]->y[i];
+				x[i]->msg[j] += delta;
+				xt[j]->msg[i] -= delta;
+				if (abs(x[i]->msg[j]) > 1e-12){
+					x[i]->add_ever_nnz(j);
+					xt[j]->add_ever_nnz(i);
+				}
+			}
+		}
+		Float cost = 0.0, infea = 0.0;
+		for (int i = 0; i < K; i++){
+			for (vector<int>::iterator it = x[i]->act_set.begin(); it != x[i]->act_set.end(); it++){
+				int j = *it;
+				cost += x[i]->y[j] * x[i]->c[j];
+				infea += abs(xt[j]->y[i] - x[i]->y[j]);
+				//cout << x[i]->y[j] << "\t";
+			}
+		}
+
+		for (int j = 0; j < K; j++){
+			for (vector<int>::iterator it = xt[j]->act_set.begin(); it != xt[j]->act_set.end(); it++){
+				int i = *it;
+				cost += xt[j]->y[i] * xt[j]->c[i];
+				infea += abs(xt[j]->y[i] - x[i]->y[j]);
+				//cout << xt[j]->y[i] << "\t";
+			}
+			//cout << endl;
+		}
+		if (iter % 1 == 0){
+			memset(taken, false, sizeof(bool)*K);
+			Float decoded = 0.0;
+			random_shuffle(indices, indices+K*2);
+			for (int k = 0; k < K*2; k++){
+				if (indices[k] >= K){
+					continue;
+				}
+				int i = indices[k];
+				Float max_y = 0.0;
+				int index = -1;
+				for (vector<int>::iterator it = x[i]->act_set.begin(); it != x[i]->act_set.end(); it++){
+					int j = *it;
+					if (!taken[j] && (x[i]->y[j] > max_y)){
+						max_y = x[i]->y[j];
+						index = j;
+					}
+				}
+				if (index == -1){
+					for (int j = 0; j < K; j++){
+						if (!taken[j]){
+							index = j;
+							break;
+						}
+					}
+				}
+				taken[index] = true;
+				decoded += x[i]->c[index];
+			}
+			if (decoded < best_decoded){
+				best_decoded = decoded;
+			}
+		}
+		stats->maintain_time += get_current_time(); 
+
+		//cout << endl;
+		cout << "iter=" << iter;
+		cout << ", recall_rate=" << recall_rate/(2*K);
+		cout << ", act_size=" << act_size_sum/(2*K);
+		cout << ", ever_nnz_size=" << ever_nnz_size_sum/(2*K);
+		cout << ", cost=" << cost/2.0 << ", infea=" << infea << ", best_decoded=" << best_decoded;
+		cout << ", search=" << stats->uni_search_time;
+		cout << ", subsolve=" << stats->uni_subsolve_time;
+		cout << ", maintain=" << stats->maintain_time;
+		cout << endl;
+		if (infea < 1e-5){
+			break;
+		}
+	}
+	delete taken;
+	return 0;
 }
 
 
@@ -318,12 +322,12 @@ int main(int argc, char** argv){
 	parse_cmd_line(argc, argv, param);
 
 	Problem* prob = NULL;
-    if (param->problem_type=="bipartite"){
-        prob = new BipartiteMatchingProblem(param);
-        prob->construct_data();
-        int K = ((BipartiteMatchingProblem*)prob)->K;
-        cerr << "prob.K=" << K << endl;
-    }
+	if (param->problem_type=="bipartite"){
+		prob = new BipartiteMatchingProblem(param);
+		prob->construct_data();
+		int K = ((BipartiteMatchingProblem*)prob)->K;
+		cerr << "prob.K=" << K << endl;
+	}
 
 	if (prob == NULL){
 		cerr << "Need to specific problem type!" << endl;
@@ -349,7 +353,7 @@ int main(int argc, char** argv){
 	   cerr << get_current_time() - t1 << endl;
 	 */
 
-    if (param->solver == 2){
+	if (param->solver == 2){
 		cerr << "Acc=" << struct_predict(prob, param) << endl;
 	}
 	prediction_time += get_current_time();

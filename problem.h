@@ -158,7 +158,7 @@ class BipartiteMatchingProblem : public Problem{
             ifstream fin(param->testFname);
             char* line = new char[LINE_LEN];
             readLine(fin, line);
-            K = stoi(string(line));
+            K = stoi(string(line));	//stoi changes string to an int.(it must starts with a digit. it could contain letter after digits, but they will be ignored. eg: 123gg -> 123; gg123 -> fault)
             Float* c = new Float[K*K];
 			for (int i = 0; i < K; i++){
                 readLine(fin, line);

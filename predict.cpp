@@ -89,7 +89,7 @@ double struct_predict(Problem* prob, Param* param){
 
 	int K = prob->K;
 	cout << "constructing factors...";
-	vector<UniFactor*> x;
+	vector<UniFactor*> x;	//x is the permutation matrix sliced depend on rows.
 	for (int i = 0; i < K; i++){
 		UniFactor* x_i = new UniFactor(K, prob->node_score_vecs[i], param);
 		x.push_back(x_i);

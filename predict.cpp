@@ -253,7 +253,7 @@ double struct_predict(Problem* prob, Param* param){
             }
             //cout << endl;
         }
-        if (iter % 50 == 0){
+        if (iter % 1 == 0){
             memset(taken, false, sizeof(bool)*K);
             Float decoded = 0.0;
             random_shuffle(indices, indices+K*2);

@@ -86,7 +86,8 @@ double struct_predict(Problem* prob, Param* param){
 	Float N = 0.0;
 	int n = 0;
 	stats = new Stats();
-
+	
+	//the work of this part below is to load in the data and to initiate the permutation matrices
 	int K = prob->K;
 	cout << "constructing factors...";
 	vector<UniFactor*> x;	//x is the permutation matrix sliced depend on rows.
@@ -94,7 +95,7 @@ double struct_predict(Problem* prob, Param* param){
 		UniFactor* x_i = new UniFactor(K, prob->node_score_vecs[i], param);
 		x.push_back(x_i);
 	}
-	vector<UniFactor*> xt;
+	vector<UniFactor*> xt;	//xt is the transpose matrix of x. a permutation matrix slieced depend on columns;
 	for (int i = 0; i < K; i++){
 		UniFactor* xt_i = new UniFactor(K, prob->node_score_vecs[K+i], param);
 		xt.push_back(xt_i);

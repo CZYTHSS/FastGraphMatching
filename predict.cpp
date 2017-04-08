@@ -88,7 +88,7 @@ double struct_predict(Problem* prob, Param* param){
 	stats = new Stats();
 	
 	//the work of this part below is to load in the data and to initiate the permutation matrices
-	int K = prob->K;
+	int K = prob->K;	//K stands for the size of the data matrix
 	cout << "constructing factors...";
 	vector<UniFactor*> x;	//x is the permutation matrix sliced depend on rows.
 	for (int i = 0; i < K; i++){
@@ -142,13 +142,13 @@ double struct_predict(Problem* prob, Param* param){
 	//cout << "max_top="<< max_top << ", avg_top=" << avg_top/(2*K)<< endl;
 
 	int iter = 0;
-	Float rho = param->rho;
+	Float rho = param->rho;    //rho = p, an coefficient.
 	int* indices = new int[K*2];
 	for (int i = 0; i < K*2; i++){
 		indices[i] = i;
 	}
 	bool* taken = new bool[K];
-	Float best_decoded = 1e100;
+	Float best_decoded = 1e100;	//the result of matrix C dot product P(or X)
 	while (iter++ < param->max_iter){
 		stats->maintain_time -= get_current_time(); 
 		//random_shuffle(indices, indices+K*2);
@@ -159,7 +159,7 @@ double struct_predict(Problem* prob, Param* param){
 		for (int k = 0; k < K*2; k++){
 			if (k % 2 == 0){
 				int i = k/2;
-				UniFactor* node = x[i];
+				UniFactor* node = x[i];		// the i th row of permutation matrix P.
 				//if (node->inside[rowsol[i]]){
 				//    recall_rate += 1.0;
 				//} else {

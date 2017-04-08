@@ -31,9 +31,9 @@ class UniFactor : public Factor{
 		Float* grad;
 		Float* y;
 		bool* inside;
-		Float* msg;
-		vector<int> act_set;
-		vector<int> ever_nnz_msg;
+		Float* msg;	//msg(j) = xi(j) - xtj(i) + uij	;  //within Factor xi
+		vector<int> act_set;  //act_set is a set of indexes. it represents all the locations in x & xt which are meaningful
+		vector<int> ever_nnz_msg; //
 		bool* is_ever_nnz;
 		int searched_index;                                                                             
 

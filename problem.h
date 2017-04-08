@@ -159,7 +159,7 @@ class BipartiteMatchingProblem : public Problem{
             char* line = new char[LINE_LEN];
             readLine(fin, line);
             K = stoi(string(line));	//stoi changes string to an int.(it must starts with a digit. it could contain letter after digits, but they will be ignored. eg: 123gg -> 123; gg123 -> fault)
-            Float* c = new Float[K*K];
+            Float* c = new Float[K*K];	//c is the matrix from data file.
 			for (int i = 0; i < K; i++){
                 readLine(fin, line);
                 while (strlen(line) == 0){
@@ -173,6 +173,7 @@ class BipartiteMatchingProblem : public Problem{
             }
             fin.close();
             
+            //node_score_vecs store the c matrix twice. From 0 to (k-1) it stores the matrix based on rows, K to (2k-1) based on columns
             for (int i = 0; i < K; i++){
                 Float* c_i = new Float[K];
                 for (int j = 0; j < K; j++){

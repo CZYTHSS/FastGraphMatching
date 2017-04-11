@@ -160,12 +160,6 @@ double struct_predict(Problem* prob, Param* param){
 			if (k % 2 == 0){
 				int i = k/2;
 				UniFactor* node = x[i];		// the i th row of permutation matrix P.
-				//if (node->inside[rowsol[i]]){
-				//    recall_rate += 1.0;
-				//} else {
-				//    node->act_set.push_back(rowsol[i]);
-				//    node->inside[rowsol[i]] = true;
-				//}
 
 				//add a new coordinate into active set
 				node->search();

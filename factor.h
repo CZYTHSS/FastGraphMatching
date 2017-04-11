@@ -1,4 +1,4 @@
-#ifndef FACTOR_H
+ifndef FACTOR_H
 #define FACTOR_H
 
 #include "util.h"
@@ -33,7 +33,7 @@ class UniFactor : public Factor{
 		bool* inside;
 		Float* msg;	//msg(j) = xi(j) - xtj(i) + uij	;  //within Factor xi
 		vector<int> act_set;  //act_set is a set of indexes. it represents all the locations in x & xt which are meaningful
-		vector<int> ever_nnz_msg; //
+		vector<int> ever_nnz_msg; //ever-none-zero: indicate this coordinate has never become nonezero. Once it becomes none-zero, it will remain in the act_set forever.
 		bool* is_ever_nnz;
 		int searched_index;                                                                             
 
@@ -87,7 +87,8 @@ class UniFactor : public Factor{
 				ever_nnz_msg.push_back(k);
 			}
 		}
-
+		
+		//the function below is not used in the main procedure of the project. it's used to debug.
 		void fill_act_set(){
 			act_set.clear();
 			ever_nnz_msg.clear();
@@ -104,7 +105,7 @@ class UniFactor : public Factor{
 			//compute gradient of y_i
 			Float gmax = -1e100;
 			int max_index = -1;
-
+			//the loop below aims to find out max gratitude of subproblem:f(x) =  ct*x+rho/2*sigma[(msg(j))^2], st. we can reach the constrain at the fastest speed.
 			for (vector<int>::iterator it = ever_nnz_msg.begin(); it != ever_nnz_msg.end(); it++){
 				int k = *it;
 				if (inside[k]){
@@ -130,7 +131,10 @@ class UniFactor : public Factor{
 				}
 				break;
 			}
+			//above: first loop, check all the blocks that are active,find the max; second loop: find the first block that are not in the act_set(the c matrix is already sorted).			
 
+
+			//
 			searched_index = max_index;
 			if (max_index != -1){
 				act_set.push_back(max_index);
@@ -140,11 +144,6 @@ class UniFactor : public Factor{
 		}
 
 
-		//	min_{y \in simplex} <c, y> + \rho/2 \sum_{msg \in msgs} \| (msg + y) - y \|_2^2
-		// <===>min_{y \in simplex} \| y - 1/|msgs| ( \sum_{msg \in msgs} (msg + y) - 1/\rho c ) \|_2^2
-		// <===>min_{y \in simplex} \| y - b \|_2^2
-		// uni_subsolve()
-		//bool output = false;
 		inline void subsolve(){
 			if (act_set.size() == 0)
 				return;

@@ -2,6 +2,7 @@
 #include <stdio.h>
 using namespace std;
 #include <iostream>
+#include <omp.h>
 
 typedef vector<double> vec_t;
 typedef vector<vec_t> mat_t;
@@ -53,6 +54,7 @@ void multiply(vector<vec_t> &W, vector<vec_t> &H, vector<vec_t> &R){
 	int height = W.size();
 	int width = H.size();
 
+	#pragma omp parallel for
 	for(int i = 0; i < height ; ++i){
 		for(int j = 0; j < width; ++j){
 			R[i][j] = dot_product(W[i], H[j]);

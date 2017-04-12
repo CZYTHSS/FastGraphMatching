@@ -2,10 +2,15 @@
 using namespace std;
 #include <omp.h>
 #include <stdio.h>
+#include <fstream>
 
 int main(){
-	for(int i = 0; i < 10000; i++){
-		cout << i << endl;
-	}
+	ofstream fout;
+	fout.open("result");
+	fout << "hello world\n";
+	int i = 0;
+	fout << i << " " << i + 1 << endl;
+	fout.close();
+	
 	return 0;
 }

@@ -3,6 +3,7 @@
 using namespace std;
 #include <iostream>
 #include <omp.h>
+#include <fstream>
 
 typedef vector<double> vec_t;
 typedef vector<vec_t> mat_t;
@@ -67,15 +68,20 @@ void mul_print(vector<vec_t> &W, vector<vec_t> &H){
 	int height = W.size();
 	int width = H.size();
 	double temp = 0;
-
+	ofstream fout;
+	fout.open("result");
+	
 	//#pragma omp parallel for
 	for(int i = 0; i < height; i++){
 		for(int j = 0; j < width; j++){
 			temp = dot_product(W[i], H[j]);
-			cout << temp << " ";
+			fout << temp << " ";
 		}
-		cout << endl;
+		fout << endl;
+		cout <<"processing line:" << i << endl;
 	}
+	fout.close();
+	return;
 }
 
 int main(){

@@ -1,4 +1,4 @@
-ifndef FACTOR_H
+#ifndef FACTOR_H
 #define FACTOR_H
 
 #include "util.h"

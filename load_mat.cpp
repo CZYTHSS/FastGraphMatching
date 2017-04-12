@@ -63,6 +63,21 @@ void multiply(vector<vec_t> &W, vector<vec_t> &H, vector<vec_t> &R){
 }
 
 
+void mul_print(vector<vec_t> &W, vector<vec_t> &H){
+	int height = W.size();
+	int width = H.size();
+	double temp = 0;
+
+	//#pragma omp parallel for
+	for(int i = 0; i < height; i++){
+		for(int j = 0; j < width; j++){
+			temp = dot_product(W[i], H[j]);
+			cout << temp << " ";
+		}
+		cout << endl;
+	}
+}
+
 int main(){
 
 	FILE* model_fp = fopen("50ratings.model","rb");
@@ -76,17 +91,20 @@ int main(){
 	int height = W.size();	//calculate the height and width of the result matrix
 	int width = H.size();
 
+	/*
 	R.resize(height);
 	for(int i = 0; i < height; i++){
 		R[i].resize(width);
 	}
+	*/
 
-	multiply(W, H, R);
+	//multiply(W, H, R);
 
-	print_mat(R);
+	//print_mat(R);
 	//cerr << "W:" << W.size()<<" "<< W[0].size();
 	//cerr << "H:" << H.size()<<" "<< H[0].size();
+	mul_print(W,H);
 	
-	
+	return 0;
 
 }

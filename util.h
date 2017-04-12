@@ -238,41 +238,54 @@ inline void solve_simplex(int n, Float* y, Float* b){
 	for (int i = 0; i < n; i++){
 		sum += b[i];
 	}
-   /* 
-	cerr << "b: ";
-	for (int  i = 0; i < n; i++){
-		cerr << b[i] << " ";
-	}
-	cerr << endl;
-    */
 	for (int i = n-1; i >= 0; i--){
 		double t = (sum - 1.0)/(i+1);
 		if (/*b[index[i]] >= 0 &&*/ b[index[i]] >= t){
 			//feasible	
-			
+
 			for (int j = 0; j < n; j++){
 				y[index[j]] = b[index[j]] - t;
 				if (y[index[j]] < 0.0)
 					y[index[j]] = 0;
-				if (y[index[j]] > 1 + 1e-6){
-                    cerr << y[index[j]] << endl;
-                    cerr << setprecision(10) << "t= " << t << ", sum=" << sum << ", b[index[i]]=" << b[index[i]] << ", i=" << i << endl;
-                }
-                assert(y[index[j]] <= 1 + 1e-6);
+				assert(y[index[j]] <= 1 + 1e-6);
 			}
 			break;
 		}
 		sum -= b[index[i]];
 	}
-	/*
-	cerr << "y: ";
-	for (int  i = 0; i < n; i++){
-		cerr << y[i] << " ";
-	}
-	cerr << endl;
-	*/
 	delete[] index;
 }
+
+// min_{\|y\|_1 <= 1 and y >= 0} \| y - b\|_2^2
+inline void solve_simplex2(int n, Float* y, Float* b){
+	int* index = new int[n];
+	for (int i = 0; i < n; i++)
+		index[i] = i;
+	memset(y, 0.0, sizeof(Float)*n);
+	sort(index, index+n, ScoreComp(b));
+	double sum = 0.0;
+	for (int i = 0; i < n; i++){
+		sum += b[i];
+	}
+	for (int i = n-1; i >= 0; i--){
+		double t = (sum - 1.0)/(i+1);
+
+		if (/*b[index[i]] >= 0 &&*/ b[index[i]] >= t && t >= (sum - 1)/(i + 1) ){
+			for (int j = 0; j < n; j++){
+				y[index[j]] = b[index[j]] - t;
+				if (y[index[j]] < 0.0)
+					y[index[j]] = 0;
+				assert(y[index[j]] <= 1 + 1e-6);
+			}
+			break;
+		}
+		sum -= b[index[i]];
+	}
+	delete[] index;
+}
+
+
+
 
 inline double get_current_time(){
 	//return (double)clock()/CLOCKS_PER_SEC;

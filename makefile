@@ -3,6 +3,7 @@ CC=g++-4.8
 
 all:
 	$(CC) $(FLAG) -o predict predict.cpp
+	$(CC) $(FLAG) -o load_mat load_mat.cpp
 
 data_dir=./data/
 model_dir=./model/

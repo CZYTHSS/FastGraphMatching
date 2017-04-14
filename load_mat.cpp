@@ -33,6 +33,23 @@ mat_t load_mat_t(FILE *fp, bool row_major){
 	return A;
 }
 
+
+//this function is used to clean all-zero rows or columns in a matrix
+mat_t clean_mat(mat_t &mat){
+	mat_t result;
+	for(int i = 0; i < mat.size(); ++i){
+		bool valid = false;
+		for(int j = 0; j < mat[i].size(); ++j){
+			if(mat[i][j] != 0) valid = true;
+			break;
+		}
+		if(valid == true){
+			result.push_back(mat[i]);
+		}
+	}
+	return result;
+}
+
 void print_mat(vector<vec_t> &mat){
 	for(int a = 0; a < mat.size(); a++){
 		for(int b = 0; b < mat[a].size(); b++){
@@ -70,15 +87,17 @@ void mul_print(vector<vec_t> &W, vector<vec_t> &H){
 	double temp = 0;
 	ofstream fout;
 	fout.open("result");
+	fout << height << " " << width << endl;
 	
 	//#pragma omp parallel for
 	for(int i = 0; i < height; i++){
+		//int n_index = 0;
 		for(int j = 0; j < width; j++){
 			temp = dot_product(W[i], H[j]);
 			fout << temp << " ";
 		}
 		fout << endl;
-		cout <<"processing line:" << i << endl;
+		if(i % 100 == 0) cout <<"processing line:" << i << endl;
 	}
 	fout.close();
 	return;
@@ -93,10 +112,13 @@ int main(){
 	mat_t W = load_mat_t(model_fp, true);
 	mat_t H = load_mat_t(model_fp, true);
 	mat_t R;
+	W = clean_mat(W);
+	H = clean_mat(H);
 
 	int height = W.size();	//calculate the height and width of the result matrix
 	int width = H.size();
 
+	cout << height << endl << width;
 	/*
 	R.resize(height);
 	for(int i = 0; i < height; i++){
@@ -109,6 +131,7 @@ int main(){
 	//print_mat(R);
 	//cerr << "W:" << W.size()<<" "<< W[0].size();
 	//cerr << "H:" << H.size()<<" "<< H[0].size();
+	
 	mul_print(W,H);
 	
 	return 0;

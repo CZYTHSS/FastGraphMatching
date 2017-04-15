@@ -19,7 +19,7 @@ class Stats{
 		double bi_subsolve_time = 0.0;
 		double maintain_time = 0.0;
 		double construct_time = 0.0;
-		
+
 
 		Stats(){
 			clear();

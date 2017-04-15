@@ -134,7 +134,8 @@ class Problem{
 		};
 		Param* param;
 		int K;
-		vector<Float*> node_score_vecs;
+		int a,b; //used to store the size of the data matrix
+		vector<Float*> node_score_vecs; //store matrix from row & column direction
 		Problem(Param* _param) : param(_param) {}
 		virtual void construct_data(){
 			cerr << "NEED to implement construct_data() for this problem!" << endl;
@@ -155,40 +156,42 @@ class BipartiteMatchingProblem : public Problem{
 		~BipartiteMatchingProblem(){}
 		void construct_data(){
 			cerr << "constructing from " << param->testFname << " ";
-            ifstream fin(param->testFname);
-            char* line = new char[LINE_LEN];
-            readLine(fin, line);
-            K = stoi(string(line));	//stoi changes string to an int.(it must starts with a digit. it could contain letter after digits, but they will be ignored. eg: 123gg -> 123; gg123 -> fault)
-            Float* c = new Float[K*K];	//c is the matrix from data file.
-			for (int i = 0; i < K; i++){
-                readLine(fin, line);
-                while (strlen(line) == 0){
-                    readLine(fin, line);
-                }
-                string line_str(line);
-                vector<string> tokens = split(line_str, ",");
-                for (int j = 0; j < K; j++){
-                    c[i*K+j] = stod(tokens[j]);
-                }
-            }
-            fin.close();
-            
-            //node_score_vecs store the c matrix twice. From 0 to (k-1) it stores the matrix based on rows, K to (2k-1) based on columns
-            for (int i = 0; i < K; i++){
-                Float* c_i = new Float[K];
-                for (int j = 0; j < K; j++){
-                    c_i[j] = c[i*K+j];
-                }
-                node_score_vecs.push_back(c_i);
-            }
-            for (int j = 0; j < K; j++){
-                Float* c_j = new Float[K];
-                for (int i = 0; i < K; i++){
-                    c_j[i] = c[i*K+j];
-                }
-                node_score_vecs.push_back(c_j);
-            }
-        }
+			ifstream fin(param->testFname);
+			char* line = new char[LINE_LEN];
+			readLine(fin, line);
+			//K = stoi(string(line));	//stoi changes string to an int.(it must starts with a digit. it could contain letter after digits, but they will be ignored. eg: 123gg -> 123; gg123 -> fault)
+			sscanf(line, "%d%d", &a, &b); // read in matrix row_number a 
+			//Float* c = new Float[K*K];	//c is the matrix from data file.
+			Float* c = new Float[a*b];	//c is the matrix from data file.
+			for (int i = 0; i < a; i++){
+				readLine(fin, line);
+				while (strlen(line) == 0){
+					readLine(fin, line);
+				}
+				string line_str(line); //transfer char* type line into string type line_str
+				vector<string> tokens = split(line_str, " ");
+				for (int j = 0; j < b; j++){
+					c[i*b+j] = stod(tokens[j]);
+				}
+			}
+			fin.close();
+
+			//node_score_vecs store the c matrix twice. From 0 to (a-1) it stores the matrix based on rows, a to (a+b-1) based on columns
+			for (int i = 0; i < a; i++){
+				Float* c_i = new Float[b];
+				for (int j = 0; j < b; j++){
+					c_i[j] = c[i*b+j];
+				}
+				node_score_vecs.push_back(c_i);
+			}
+			for (int j = 0; j < b; j++){
+				Float* c_j = new Float[a];
+				for (int i = 0; i < a; i++){
+					c_j[i] = c[i*a+j];
+				}
+				node_score_vecs.push_back(c_j);
+			}
+		}
 };
 
 

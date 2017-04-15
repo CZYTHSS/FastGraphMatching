@@ -19,13 +19,14 @@ class Factor{
 class UniFactor : public Factor{
 	public:
 		//fixed
-		int K;
+		int K; //K stands for the size of this Factor
 		Float rho;
 		Float* c; // score vector, c[k] = -<w_k, x>
 		Float nnz_tol;
 		pair<Float, int>* sorted_index;
 
 		bool shrink;
+		bool tight;
 
 		//maintained
 		Float* grad;
@@ -37,10 +38,11 @@ class UniFactor : public Factor{
 		bool* is_ever_nnz;
 		int searched_index;                                                                             
 
-		inline UniFactor(int _K, Float* _c, Param* param){
+		inline UniFactor(int _K, Float* _c, Param* param, bool _tight){
 			K = _K;
 			rho = param->rho;
 			nnz_tol = param->nnz_tol;
+			tight = _tight;
 			//compute score vector
 			c = _c;
 			//cache of gradient
@@ -166,7 +168,11 @@ class UniFactor : public Factor{
 			//    cout << " " << b[k];
 			//}
 			//cout << endl;
-			solve_simplex(act_set.size(), y_new, b);
+			if (tight){
+				solve_simplex(act_set.size(), y_new, b);
+			} else {
+				solve_simplex2(act_set.size(), y_new, b);
+			}
 			//cout << "\t";
 			//for (int k = 0; k < act_set.size(); k++){
 			//    cout << " " << y_new[k];

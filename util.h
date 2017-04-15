@@ -269,8 +269,19 @@ inline void solve_simplex2(int n, Float* y, Float* b){
 	}
 	for (int i = n-1; i >= 0; i--){
 		double t = (sum - 1.0)/(i+1);
-
-		if (/*b[index[i]] >= 0 &&*/ b[index[i]] >= t && t >= (sum - 1)/(i + 1) ){
+		// t \in [l, r]
+		double l = (sum - 1.0)/(i+1);
+		double r = b[index[i]];
+		if (r <= 0){
+			t = r;
+		} else {
+			if (l >= 0){
+				t = l;
+			} else {
+				t = 0;
+			}
+		}
+		if (l <= r){
 			for (int j = 0; j < n; j++){
 				y[index[j]] = b[index[j]] - t;
 				if (y[index[j]] < 0.0)

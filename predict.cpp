@@ -86,18 +86,20 @@ double struct_predict(Problem* prob, Param* param){
 	Float N = 0.0;
 	int n = 0;
 	stats = new Stats();
-	
+
 	//the work of this part below is to load in the data and to initiate the permutation matrices
-	int K = prob->K;	//K stands for the size of the data matrix
+	//int K = prob->K;	//K stands for the size of the data matrix
+	int a = prob->a;	//a stands for the height of the data matrix
+	int b = prob->b;	//b stands for the width of the data matrix
 	cout << "constructing factors...";
 	vector<UniFactor*> x;	//x is the permutation matrix sliced depend on rows.
-	for (int i = 0; i < K; i++){
-		UniFactor* x_i = new UniFactor(K, prob->node_score_vecs[i], param);
+	for (int i = 0; i < a; i++){
+		UniFactor* x_i = new UniFactor(b, prob->node_score_vecs[i], param, true);
 		x.push_back(x_i);
 	}
 	vector<UniFactor*> xt;	//xt is the transpose matrix of x. a permutation matrix slieced depend on columns;
-	for (int i = 0; i < K; i++){
-		UniFactor* xt_i = new UniFactor(K, prob->node_score_vecs[K+i], param);
+	for (int i = 0; i < b; i++){
+		UniFactor* xt_i = new UniFactor(a, prob->node_score_vecs[a+i], param, false);
 		xt.push_back(xt_i);
 	}
 	cout << "done" << endl;
@@ -143,11 +145,11 @@ double struct_predict(Problem* prob, Param* param){
 
 	int iter = 0;
 	Float rho = param->rho;    //rho = p, an coefficient.
-	int* indices = new int[K*2];
-	for (int i = 0; i < K*2; i++){
+	int* indices = new int[a+b];
+	for (int i = 0; i < a+b; i++){
 		indices[i] = i;
 	}
-	bool* taken = new bool[K];
+	bool* taken = new bool[a]; //need to check the meaning again later 
 	Float best_decoded = 1e100;	//the result of matrix C dot product P(or X)
 	while (iter++ < param->max_iter){
 		stats->maintain_time -= get_current_time(); 
@@ -156,9 +158,9 @@ double struct_predict(Problem* prob, Param* param){
 		Float act_size_sum = 0;
 		Float ever_nnz_size_sum = 0;
 		Float recall_rate = 0.0;
-		for (int k = 0; k < K*2; k++){
-			if (k % 2 == 0){
-				int i = k/2;
+		for (int k = 0; k < a+b; k++){
+			if (k < a){
+				int i = k;
 				UniFactor* node = x[i];		// the i th row of permutation matrix P.
 
 				//add a new coordinate into active set
@@ -181,7 +183,7 @@ double struct_predict(Problem* prob, Param* param){
 				}
 				stats->maintain_time += get_current_time(); 
 			} else {
-				int j = k/2;
+				int j = k - a;
 				UniFactor* node = xt[j];
 				//if (node->inside[colsol[j]]){
 				//    recall_rate += 1.0;
@@ -209,7 +211,7 @@ double struct_predict(Problem* prob, Param* param){
 		// msg[i] = (x[i][j] - xt[j][i] + mu[i][j])
 		// msg[i] = (x[i][j] - xt[j][i] + mu[i][j])
 		stats->maintain_time -= get_current_time(); 
-		for (int i = 0; i < K; i++){
+		for (int i = 0; i < a; i++){
 			for (vector<int>::iterator it = x[i]->act_set.begin(); it != x[i]->act_set.end(); it++){
 				int j = *it;
 				Float delta = x[i]->y[j];
@@ -221,7 +223,7 @@ double struct_predict(Problem* prob, Param* param){
 				}
 			}
 		}
-		for (int j = 0; j < K; j++){
+		for (int j = 0; j < b; j++){
 			for (vector<int>::iterator it = xt[j]->act_set.begin(); it != xt[j]->act_set.end(); it++){
 				int i = *it;
 				Float delta = -xt[j]->y[i];
@@ -234,7 +236,7 @@ double struct_predict(Problem* prob, Param* param){
 			}
 		}
 		Float cost = 0.0, infea = 0.0;
-		for (int i = 0; i < K; i++){
+		for (int i = 0; i < a; i++){
 			for (vector<int>::iterator it = x[i]->act_set.begin(); it != x[i]->act_set.end(); it++){
 				int j = *it;
 				cost += x[i]->y[j] * x[i]->c[j];
@@ -243,7 +245,7 @@ double struct_predict(Problem* prob, Param* param){
 			}
 		}
 
-		for (int j = 0; j < K; j++){
+		for (int j = 0; j < b; j++){
 			for (vector<int>::iterator it = xt[j]->act_set.begin(); it != xt[j]->act_set.end(); it++){
 				int i = *it;
 				cost += xt[j]->y[i] * xt[j]->c[i];
@@ -253,14 +255,20 @@ double struct_predict(Problem* prob, Param* param){
 			//cout << endl;
 		}
 		if (iter % 1 == 0){
-			memset(taken, false, sizeof(bool)*K);
+			memset(taken, false, sizeof(bool)*a);
 			Float decoded = 0.0;
-			random_shuffle(indices, indices+K*2);
-			for (int k = 0; k < K*2; k++){
-				if (indices[k] >= K){
+			int* row_index = new int[a];
+			for(int i = 0; i < a; i++){
+				row_index[i] = i;
+			}
+			random_shuffle(row_index, row_index+a);
+			//random_shuffle(indices, indices+a+b);
+				
+			for (int k = 0; k < a; k++){
+				/*if (indices[k] >= a){
 					continue;
-				}
-				int i = indices[k];
+				}*/
+				int i = row_index[k];
 				Float max_y = 0.0;
 				int index = -1;
 				for (vector<int>::iterator it = x[i]->act_set.begin(); it != x[i]->act_set.end(); it++){
@@ -271,7 +279,7 @@ double struct_predict(Problem* prob, Param* param){
 					}
 				}
 				if (index == -1){
-					for (int j = 0; j < K; j++){
+					for (int j = 0; j < a; j++){
 						if (!taken[j]){
 							index = j;
 							break;
@@ -281,6 +289,7 @@ double struct_predict(Problem* prob, Param* param){
 				taken[index] = true;
 				decoded += x[i]->c[index];
 			}
+			delete row_index;
 			if (decoded < best_decoded){
 				best_decoded = decoded;
 			}
@@ -289,9 +298,9 @@ double struct_predict(Problem* prob, Param* param){
 
 		//cout << endl;
 		cout << "iter=" << iter;
-		cout << ", recall_rate=" << recall_rate/(2*K);
-		cout << ", act_size=" << act_size_sum/(2*K);
-		cout << ", ever_nnz_size=" << ever_nnz_size_sum/(2*K);
+		cout << ", recall_rate=" << recall_rate/(a+b);
+		cout << ", act_size=" << act_size_sum/(a+b);
+		cout << ", ever_nnz_size=" << ever_nnz_size_sum/(a+b);
 		cout << ", cost=" << cost/2.0 << ", infea=" << infea << ", best_decoded=" << best_decoded;
 		cout << ", search=" << stats->uni_search_time;
 		cout << ", subsolve=" << stats->uni_subsolve_time;
@@ -320,8 +329,11 @@ int main(int argc, char** argv){
 	if (param->problem_type=="bipartite"){
 		prob = new BipartiteMatchingProblem(param);
 		prob->construct_data();
-		int K = ((BipartiteMatchingProblem*)prob)->K;
-		cerr << "prob.K=" << K << endl;
+		//int K = ((BipartiteMatchingProblem*)prob)->K;
+		int a = ((BipartiteMatchingProblem*)prob)->a;
+		int b = ((BipartiteMatchingProblem*)prob)->b;
+		cerr << "prob.a=" << a << endl;
+		cerr << "prob.b=" << b << endl;
 	}
 
 	if (prob == NULL){
